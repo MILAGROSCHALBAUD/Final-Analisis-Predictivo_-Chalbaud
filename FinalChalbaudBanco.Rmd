@@ -1,0 +1,616 @@
+---
+title: "Final Banco Predictivo"
+author: "Milagros Chalbaud"
+date: "2023-07-02"
+output: html_document
+---
+```{r}
+library(readr)
+library(ggplot2)
+
+#library(lessR)
+#library("mice")
+library(dplyr)
+#library(ggstatsplot)
+library(tidyr)
+#installed.packages("fastDummies")
+library(fastDummies)
+library(corrplot)
+library(caret)
+library(randomForest)
+#https://archive.ics.uci.edu/dataset/222/bank+marketing
+
+```
+
+```{r}
+datos <- read.csv("~/Desktop/FINAL PREDICTIVO/Bank-full.csv", sep=";")
+```
+
+
+objetivo de este análisis predictivo es desarrollar un modelo capaz de predecir si un cliente se suscribirá a un depósito a plazo fijo. Utilizando datos históricos y características relevantes de los clientes, el modelo buscará identificar patrones y factores determinantes que influyan en la suscripción a este producto financiero. El resultado esperado es obtener un modelo preciso y confiable que pueda predecir de manera efectiva si un cliente se suscribirá o no a un depósito a plazo fijo, lo que permitirá a la institución financiera tomar decisiones informadas y desarrollar estrategias de marketing más eficientes.
+
+
+# INFORMACIÓN DE LA BASE
+```{r}
+head(datos)
+```
+
+```{r}
+dim(datos)
+```
+
+```{r}
+str(datos)
+```
+```{r}
+df.y <- data.frame(predecir = datos$y)
+```
+
+```{r}
+table(datos$y)
+```
+
+```{r}
+datos$y <- as.factor(datos$y)
+```
+
+```{r}
+ggplot(data = datos) + geom_bar(mapping = aes(x = y), fill="#0066cc") + theme(panel.grid = element_blank()) + xlab("") + ylab("")
+```
+```{r}
+table_y <- table(df.y$predecir)
+
+df_y <- as.data.frame(table_y)
+names(df_y) <- c("y", "count")
+
+df_y$percentage <- df_y$count / sum(df_y$count) * 100
+
+ggplot(df_y, aes(x = "", y = percentage, fill = y)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y", start = 0) +
+  labs(title = "Cliente vs. No cliente", fill = "y") +
+  theme_void() +  # Usamos theme_void para eliminar el fondo y los ejes
+  geom_text(aes(label = paste0(percentage, "%")), position = position_stack(vjust = 0.5))
+
+```
+
+# MISSINGS
+
+```{r}
+missings = data.frame(colSums(datos == "\\N" | datos == "" | is.na(datos)))
+```
+
+
+```{r}
+ggplot(data = datos, aes(x = y, fill = y)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("")  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+table(datos$y)
+```
+
+
+
+# ANALISIS UNIVARIADO
+
+## CATEGORICAS
+
+JOB
+```{r}
+#ggplot(data = datos) + geom_bar(mapping = aes(x = job), fill="#003366") + theme(panel.grid = element_blank()) + xlab("") + ylab("")
+ggplot(data = datos, aes(x = job, fill = job)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  ggtitle("Número de trabajadores por trabajo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+MARITAL
+
+```{r}
+ggplot(data = datos, aes(x = marital, fill = marital)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  #ggtitle("Número de trabajadores por trabajo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+EDUCATION
+```{r}
+ggplot(data = datos, aes(x = education, fill = education)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  ggtitle("Número de trabajadores por trabajo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+DEFAULT
+```{R}
+ggplot(data = datos, aes(x = default, fill = default)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+HOUSING
+```{r}
+ggplot(data = datos, aes(x = housing, fill = housing)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+LOAN
+
+```{r}
+ggplot(data = datos, aes(x = loan, fill = loan)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+CONTACT
+
+```{r}
+ggplot(data = datos, aes(x = contact, fill = contact)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+MONTH
+```{r}
+ggplot(data = datos, aes(x = month, fill = month)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+POUTCOME
+```{r}
+ggplot(data = datos, aes(x = poutcome, fill = poutcome)) +
+  geom_bar(width = 0.7, color = "#003366") +
+  theme(panel.grid = element_blank()) +
+  xlab("") +
+  ylab("") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#CONTINUAS
+
+AGE
+```{r}
+summary(datos$age)
+```
+
+```{r}
+boxplot(datos$age, main = "", ylab = "age", col = "#0066cc", border = "#0066cc")
+```
+
+```{r}
+hist(datos$age, main = "", xlab = "age", ylab = "Frequency",  col = "#0066cc")
+```
+
+```{r}
+Q <- quantile(datos$age, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$age)
+```
+
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+```{r}
+datos$age[datos$age > up] <- mean(datos$age)
+datos$age[datos$age < low] <- mean(datos$age)
+```
+
+
+Balance
+```{r}
+summary(datos$balance)
+```
+
+
+```{r}
+boxplot(datos$balance, main = "", ylab = "balance", col = "#0066cc", border = "#0066cc")
+```
+
+
+```{r}
+hist(datos$balance, main = "", xlab = "balance", ylab = "Frequency",  col = "#0066cc")
+```
+
+
+```{r}
+Q <- quantile(datos$balance, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$balance)
+```
+
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+```{r}
+datos$balance[datos$balance > up] <- mean(datos$balance)
+datos$balance[datos$balance < low] <- mean(datos$balance)
+```
+
+
+
+day
+```{r}
+summary(datos$day)
+```
+
+
+
+```{r}
+boxplot(datos$day, main = "", ylab = "day", col = "#0066cc", border = "#0066cc")
+```
+
+
+```{r}
+hist(datos$day, main = "", xlab = "balance", ylab = "Frequency",  col = "#0066cc")
+```
+
+
+Duration
+
+```{r}
+summary(datos$duration)
+```
+
+
+```{r}
+boxplot(datos$duration, main = "", ylab = "duration", col = "#0066cc", border = "#0066cc")
+```
+
+
+```{r}
+hist(datos$duration, main = "", xlab = "duration", ylab = "Frequency",  col = "#0066cc")
+```
+
+
+```{r}
+Q <- quantile(datos$duration, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$duration)
+```
+
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+```{r}
+datos$duration[datos$duration> up] <- mean(datos$duration)
+datos$duration[datos$duration < low] <- mean(datos$duration)
+```
+
+
+Campaign
+```{r}
+summary(datos$campaign)
+```
+
+
+```{r}
+boxplot(datos$campaign, main = "", ylab = "campaign", col = "#0066cc", border = "#0066cc")
+```
+
+
+```{r}
+hist(datos$campaign, main = "", xlab = "campaign", ylab = "Frequency",  col = "#0066cc")
+```
+
+
+```{r}
+Q <- quantile(datos$campaign, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$campaign)
+```
+
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+```{r}
+datos$campaign[datos$campaign > up] <- mean(datos$campaign)
+datos$campaign[datos$campaign < low] <- mean(datos$campaign)
+```
+
+pdays
+
+```{r}
+summary(datos$pdays)
+```
+
+
+```{r}
+boxplot(datos$pdays, main = "", ylab = "pdays", col = "#0066cc", border = "#0066cc")
+```
+
+
+```{r}
+hist(datos$campaign, main = "", xlab = "campaign", ylab = "Frequency",  col = "#0066cc")
+```
+
+
+```{r}
+Q <- quantile(datos$campaign, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$campaign)
+```
+
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+```{r}
+datos$campaign[datos$campaign > up] <- mean(datos$campaign)
+datos$campaign[datos$campaign < low] <- mean(datos$campaign)
+```
+
+
+previous
+
+```{r}
+summary(datos$previous)
+```
+
+```{r}
+boxplot(datos$previous, main = "", ylab = "previous", col = "#0066cc", border = "#0066cc")
+```
+
+
+```{r}
+hist(datos$previous, main = "", xlab = "previous", ylab = "Frequency",  col = "#0066cc")
+```
+
+
+```{r}
+Q <- quantile(datos$previous, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(datos$previous)
+```
+
+```{r}
+up <-  Q[2]+1.5*iqr # Upper Range  
+low <- Q[1]-1.5*iqr # Lower Range
+```
+
+```{r}
+datos$previous[datos$previous > up] <- median(datos$previous)
+datos$previous[datos$previous < low] <- median(datos$previous)
+```
+
+
+TEST DE CHI-CUADRADO
+
+```{r}
+chisq.test(datos$y,datos$job)
+```
+
+```{r}
+chisq.test(datos$y,datos$marital)
+```
+
+```{r}
+chisq.test(datos$y,datos$education)
+```
+
+```{r}
+chisq.test(datos$y,datos$default)
+```
+
+```{r}
+chisq.test(datos$y,datos$housing)
+```
+
+```{r}
+chisq.test(datos$y,datos$contact)
+```
+
+```{r}
+chisq.test(datos$y,datos$month)
+```
+
+```{r}
+table(datos$day)
+str(datos$day)
+```
+
+```{r}
+chisq.test(datos$y,datos$poutcome)
+```
+
+```{r}
+group_1 <- datos$age[datos$y == "yes"]
+group_0 <- datos$age[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+```{r}
+group_1 <- datos$balance[datos$y == "yes"]
+group_0 <- datos$balance[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+
+```{r}
+group_1 <- datos$day[datos$y == "yes"]
+group_0 <- datos$day[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+
+
+
+
+
+```{r}
+group_1 <- datos$duration[datos$y == "yes"]
+group_0 <- datos$duration[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+
+
+
+
+
+
+
+```{r}
+group_1 <- datos$campaign[datos$y == "yes"]
+group_0 <- datos$campaign[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+
+
+
+
+
+
+```{r}
+group_1 <- datos$previous[datos$y == "yes"]
+group_0 <- datos$previous[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+
+
+
+
+```{r}
+group_1 <- datos$pdays[datos$y == "yes"]
+group_0 <- datos$pdays[datos$y == "no"]
+
+result_ttest <- t.test(group_1, group_0)
+print(result_ttest)
+```
+
+
+TRANSFORMO EN DUMMYS 
+
+````{r}
+variables_numericas <- datos[, c("age", "balance", "day", "duration", "campaign", "pdays", "previous")]
+
+
+colnames(variables_numericas) <- c("age", "balance", "day", "duration", "campaign", "pdays", "previous")
+
+variables_categoricas <- datos[, c("job", "marital", "education", "default", "housing", "loan", "contact", "month", "poutcome")]
+
+
+dummy_vars <- dummyVars("~.", data = variables_categoricas)
+
+
+variables_dummy <- predict(dummy_vars, newdata = variables_categoricas)
+
+
+variables_transformadas <- cbind(variables_numericas, variables_dummy)
+```
+
+```{r}
+# Verificar si hay valores perdidos en las variables numéricas
+missings_numericas <- apply(variables_numericas, 2, function(x) sum(is.na(x)))
+
+# Verificar si hay valores perdidos en las variables dummy
+missings_dummy <- apply(variables_dummy, 2, function(x) sum(is.na(x)))
+
+# Verificar si hay valores perdidos en las variables transformadas
+missings_transformadas <- apply(variables_transformadas, 2, function(x) sum(is.na(x)))
+
+# Imprimir los resultados
+print(missings_numericas)
+print(missings_dummy)
+print(missings_transformadas)
+
+```
+
+```{r}
+str(variables_transformadas)
+```
+
+MATRIZ DE CORRELACION 
+
+```{r}
+variables_transformadas <- variables_transformadas[, -which(names(variables_transformadas) == "previous")]
+matriz_cor <- cor(variables_transformadas)
+print(matriz_cor)
+```
+
+```{r}
+corrplot(matriz_cor, type = "lower", order = "hclust", tl.col = "black", tl.srt = 45,tl.cex=0.5)
+
+#corrplot(matriz_cor, type = "upper", method = "number", tl.cex = 0.7)
+```
+
+
+
+
+
+
+
+```{r}
+
+correlacion <- cor(variables_transformadas, method = "pearson")
+colores <- colorRampPalette(c("#53942F", "#9ED470", "#FFFFFF", "#F6796A", "#CB1618"))
+
+corrplot(correlacion, method = "shade", shade.col = NA, tl.col = "black", tl.srt = 45, col = colores(200), tl.cex = 0.5)
+
+```
+
+
+Dataset final y a python :
+
+```{r}
+final <- cbind(variables_transformadas, y = datos$y)
+
+```
+
+```{r}
+dim(final)
+final$y <- ifelse(final$y == "no", 0, 1)
+print(final)
+```
+
+
+
+```{r}
+write.csv(final, file = "final.csv", row.names = FALSE)
+```
+
